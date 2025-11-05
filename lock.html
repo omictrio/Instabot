@@ -146,9 +146,9 @@ input.addEventListener('keypress', function(e) {
 
         function checkPassword() {
             const password = document.getElementById('password').value;
-            if (password === '4321') {
+            if (password === '1410') {
                 document.getElementById('lock').style.display = 'none';
-                window.open('pdf.html', '_blank');
+                window.open('index.html', '_blank');
             } else {
                 document.getElementById('lock').style.animation = 'shake 0.4s';
                 setTimeout(() => document.getElementById('lock').style.animation = '', 400);
