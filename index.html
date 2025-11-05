@@ -1,58 +1,255 @@
 <!doctype html>
-<html lang="hi">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Clickable Background Image</title>
+  <title>Photo → PDF Converter (Client-side)</title>
   <style>
-  
-    .clickable-bg {
-      width: 100%;               
-      max-width: 9000px;       
-      height: 4000px;           
-      margin: 40px auto;        
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-      background-position: center;
-      background-size: cover;
-      background-repeat: no-repeat;
-      position: relative;
-      display: block;           
-    }
+    :root{--accent:#2d64dd;--muted:#6b7280}
+    body{background-color: #e8e7d6; font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;line-height:1.4;margin:0;background:#f7fafc;color:#0f172a}
+    .wrap{max-width:980px;margin:28px auto;padding:18px; background-color: #e8e7d6;}
+    header{display:flex;gap:12px;align-items:center}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:6px 0 18px;color:var(--muted)}
 
-    
-    .clickable-bg .overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 20px;
-      font-weight: 600;
-      text-shadow: 0 2px 6px rgba(0,0,0,0.6);
-      background: linear-gradient(to bottom, rgba(0,0,0,0.08), rgba(0,0,0,0.18));
-      pointer-events: none; 
-    }
+    .controls{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+    .card{background:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(15,23,42,0.06);padding:12px}
+    .uploader{border:2px dashed rgba(15,23,42,0.06);padding:14px;display:flex;gap:12px;align-items:center}
+    .thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    .thumb{width:120px;background:#fff;border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px;border:1px solid #eef2ff}
+    .thumb img{max-width:100%;height:84px;object-fit:cover;border-radius:6px}
 
-    
-    @media (max-width:600px) {
-      .clickable-bg { height: 250px; }
-      .clickable-bg .overlay { font-size: 16px; }
-    }
+    .btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;text-decoration:none;border:0;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(37,99,235,0.14)}
+    .small{font-size:13px;padding:6px 8px}
+
+    label{font-size:13px;color:var(--muted)}
+    select,input[type=number],input[type=text]{padding:8px;border-radius:8px;border:1px solid #e6edf3}
+    .flex-row{display:flex;gap:8px;align-items:center}
+    .settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+    footer.note{margin-top:18px;color:var(--muted);font-size:13px}
+
+    @media (max-width:620px){.thumb{width:45%;}.controls{flex-direction:column}}
   </style>
 </head>
 <body>
-  <a class="clickable-bg"
-     href="instalogin.html"
-     target="_blank"
-     style="background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRcSDTYbTuKXfuyhAd9wBr6TAkvmAJkMLaD3w&s');"
-     aria-label="Open example.com">
-    <div class="overlay">...</div>
-  </a>
+  <div class="wrap">
+    <header>
+      <h1>Photo → PDF Converter (client-side)</h1>
+    </header>
+    <p class="lead">Multi-image → single PDF. Drag to reorder, set page size/orientation/margins, adjust JPEG quality, then convert and download — no upload to server (all in your browser).</p>
+
+    <div class="card controls">
+      <div class="uploader" style="flex:1;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div>
+            <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
+            <button id="pickBtn" class="btn">Choose Photos</button>
+          </div>
+          <div style="font-size:13px;color:var(--muted)">or drag & drop images below</div>
+        </div>
+        <div class="flex-row">
+          <button id="clearBtn" class="btn ghost small">Clear</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div class="settings">
+          <div>
+            <label>Page size</label><br>
+            <select id="pageSize">
+              <option value="a4">A4 (210 × 297 mm)</option>
+              <option value="letter">Letter (215.9 × 279.4 mm)</option>
+              <option value="a5">A5 (148 × 210 mm)</option>
+              <option value="custom">Custom (mm)</option>
+            </select>
+          </div>
+          <div>
+            <label>Orientation</label><br>
+            <select id="orientation">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </div>
+          <div>
+            <label>Margins (mm)</label><br>
+            <input id="margin" type="number" value="10" min="0" max="50" />
+          </div>
+          <div>
+            <label>JPEG Quality (0.1 - 1)</label><br>
+            <input id="quality" type="number" step="0.1" min="0.1" max="1" value="0.92" />
+          </div>
+          <div>
+            <label>Filename</label><br>
+            <input id="filename" type="text" value="photos-to-pdf" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="convertBtn" class="btn">Convert → Download</button>
+        </div>
+      </div>
+
+      <div id="dropZone" style="margin-top:12px;padding:12px;border-radius:8px;min-height:80px;background:linear-gradient(180deg,#ffffff,#fbfdff);">
+        <div id="thumbs" class="thumbs"></div>
+      </div>
+
+    </div>
+
+    <footer class="note">Notes: Conversion runs entirely in your browser — files are not uploaded to any server. Reordering thumbnails changes the page order. If you want smaller PDFs, reduce <em>JPEG Quality</em> or crop images before conversion.</footer>
+  </div>
+
+  <!-- Libraries: jsPDF + Sortable (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+  <script>
+    // Utility: page sizes in mm
+    const PAGE_SIZES = {
+      a4: {w:210, h:297},
+      letter: {w:215.9, h:279.4},
+      a5: {w:148, h:210}
+    };
+
+    const fileInput = document.getElementById('fileInput');
+    const pickBtn = document.getElementById('pickBtn');
+    const thumbs = document.getElementById('thumbs');
+    const dropZone = document.getElementById('dropZone');
+    const convertBtn = document.getElementById('convertBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    pickBtn.addEventListener('click', ()=>fileInput.click());
+    fileInput.addEventListener('change', (e)=>handleFiles(e.target.files));
+
+    // Drag & drop
+    ['dragenter','dragover'].forEach(ev=>{
+      dropZone.addEventListener(ev, (e)=>{e.preventDefault(); dropZone.style.borderColor = '#c7ddff';});
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      dropZone.addEventListener(ev, (e)=>{e.preventDefault(); dropZone.style.borderColor = ''});
+    });
+    dropZone.addEventListener('drop', (e)=>{
+      const dt = e.dataTransfer; if(!dt) return; handleFiles(dt.files);
+    });
+
+    clearBtn.addEventListener('click', ()=>{ thumbs.innerHTML=''; fileInput.value=''; });
+
+    // Read files and create thumbnail cards
+    function handleFiles(files){
+      const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+      if(!arr.length) return;
+      for(const file of arr){
+        const reader = new FileReader();
+        reader.onload = function(ev){
+          const url = ev.target.result;
+          const div = document.createElement('div'); div.className='thumb card';
+          div.draggable = true;
+
+          div.innerHTML = `
+            <img src="${url}" alt="img" />
+            <div style="width:100%;display:flex;gap:6px;justify-content:center;">
+              <button class="btn small" data-action="remove">Remove</button>
+            </div>
+            <input type="hidden" class="dataurl" value="${url}" />
+          `;
+
+          thumbs.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Delegated remove
+    thumbs.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button'); if(!btn) return;
+      const action = btn.getAttribute('data-action');
+      if(action === 'remove') btn.closest('.thumb').remove();
+    });
+
+    // Make thumbnails sortable
+    new Sortable(thumbs, {animation:150});
+
+    async function convertToPDF(){
+      const filename = (document.getElementById('filename').value || 'photos-to-pdf').trim();
+      const orientation = document.getElementById('orientation').value;
+      const pageSizeKey = document.getElementById('pageSize').value;
+      const margin = Number(document.getElementById('margin').value) || 10; // mm
+      const quality = Number(document.getElementById('quality').value) || 0.92;
+
+      let pageSize = PAGE_SIZES[pageSizeKey] || null;
+      if(!pageSize){
+        // custom prompt
+        const w = parseFloat(prompt('Enter page width in mm', '210')) || 210;
+        const h = parseFloat(prompt('Enter page height in mm', '297')) || 297;
+        pageSize = {w,h};
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({unit:'mm', format:[pageSize.w, pageSize.h], orientation});
+
+      // For each thumb in current order
+      const thumbEls = Array.from(thumbs.querySelectorAll('.thumb'));
+      if(!thumbEls.length){ alert('Add some images first.'); return; }
+
+      for(let i=0;i<thumbEls.length;i++){
+        const dataUrl = thumbEls[i].querySelector('.dataurl').value;
+        // load image to measure
+        const img = await loadImage(dataUrl);
+
+        // page area available for image
+        const pageW = (orientation === 'portrait') ? pageSize.w : pageSize.h;
+        const pageH = (orientation === 'portrait') ? pageSize.h : pageSize.w;
+        const maxW = pageW - margin*2;
+        const maxH = pageH - margin*2;
+
+        // compute image dimensions in mm (approx): convert px -> mm using 96 DPI assumption (px per inch) => 96 px = 25.4 mm
+        const pxToMm = (px)=> px * 25.4 / 96;
+        let imgWmm = pxToMm(img.width);
+        let imgHmm = pxToMm(img.height);
+
+        // scale to fit
+        const ratio = Math.min(maxW / imgWmm, maxH / imgHmm, 1);
+        imgWmm = imgWmm * ratio;
+        imgHmm = imgHmm * ratio;
+
+        const x = (pageW - imgWmm)/2;
+        const y = (pageH - imgHmm)/2;
+
+        // create temporary canvas to re-encode with desired quality and correct orientation
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const ctx = tempCanvas.getContext('2d');
+        ctx.drawImage(img,0,0);
+        const jpegDataUrl = tempCanvas.toDataURL('image/jpeg', quality);
+
+        // add to pdf
+        // jsPDF addImage supports JPEG/PNG dataurl, specify format and position/size in mm
+        pdf.addImage(jpegDataUrl, 'JPEG', x, y, imgWmm, imgHmm);
+
+        if(i < thumbEls.length - 1) pdf.addPage();
+      }
+
+      // Save file
+      pdf.save(filename + '.pdf');
+    }
+
+    convertBtn.addEventListener('click', async ()=>{
+      convertBtn.disabled = true; convertBtn.textContent = 'Converting...';
+      try{ await convertToPDF(); }
+      catch(err){ console.error(err); alert('Error: '+err.message); }
+      finally{ convertBtn.disabled = false; convertBtn.textContent = 'Convert → Download'; }
+    });
+
+    function loadImage(dataUrl){
+      return new Promise((res, rej)=>{
+        const img = new Image(); img.onload = ()=>res(img); img.onerror = rej; img.src = dataUrl;
+      });
+    }
+
+    // Accessibility: allow keyboard file selection via drop zone
+    dropZone.addEventListener('click', ()=>fileInput.click());
+
+  </script>
 </body>
 </html>
-
-
-
